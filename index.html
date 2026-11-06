@@ -1,15 +1,80 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Product Watermarker</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  
+  <div class="wrap">
+    <div class="app">
+      <section class="preview" aria-label="Result">
+        <div class="stage"><canvas id="out" width="800" height="600" role="img" aria-label="Watermarked product image preview"></canvas></div>
+        <div class="stats" id="stats" aria-live="polite"></div>
+      </section>
+
+      <div class="controls">
+        <fieldset class="panel">
+          <legend>Product image</legend>
+          <label class="drop" id="dropProduct">
+            <span class="thumb"><canvas id="thumbProduct" width="52" height="52"></canvas></span>
+            <span class="meta">
+              <span class="label">Choose an image<span class="tag" id="tagProduct">Example</span></span>
+              <span class="file" id="fileProduct"></span>
+            </span>
+            <input class="sr" id="inProduct" type="file" accept="image/*">
+          </label>
+          <div class="fixed">
+            <span class="thumb"><canvas id="thumbWm" width="52" height="52"></canvas></span>
+            <span class="meta">
+              <span class="label">Watermark</span>
+              <span class="file" id="fileWm">Loading…</span>
+            </span>
+          </div>          
+        </fieldset>
+
+        <fieldset class="panel">
+          <legend>Minimum size</legend>
+          <label class="check"><input type="checkbox" id="minOn" checked> Enlarge small images</label>
+          <div class="pair">
+            <label class="field"><span>Min width (px)</span><input type="number" id="minW" value="800" min="1" max="8000" step="1" inputmode="numeric"></label>
+            <label class="field"><span>Min height (px)</span><input type="number" id="minH" value="800" min="1" max="8000" step="1" inputmode="numeric"></label>
+          </div>
+          <p class="hint">If either side is below the minimum, the image is scaled up proportionally until both sides reach it. Larger images are left alone. Enlarging adds pixels, not detail.</p>
+        </fieldset>
+
+        <fieldset class="panel">
+          <legend>Watermark placement</legend>
+          <label class="check"><input type="checkbox" id="wmOn" checked> Apply watermark</label>
+          <div class="pos">
+            <div class="grid3" id="grid3" role="group" aria-label="Watermark position"></div>
+            <button type="button" class="tilebtn" id="tileBtn" aria-pressed="false">Repeat across image</button>
+          </div>
+          <div class="slider"><div class="top"><label for="wmSize">Size</label><output id="oSize" for="wmSize">30% of width</output></div><input type="range" id="wmSize" min="5" max="100" value="30"></div>
+          <div class="slider"><div class="top"><label for="wmOpacity">Opacity</label><output id="oOpacity" for="wmOpacity">60%</output></div><input type="range" id="wmOpacity" min="5" max="100" value="60"></div>
+          <div class="slider" id="sMargin"><div class="top"><label for="wmMargin">Edge margin</label><output id="oMargin" for="wmMargin">3%</output></div><input type="range" id="wmMargin" min="0" max="15" step="0.5" value="3"></div>
+          <div class="slider"><div class="top"><label for="wmRot">Rotation</label><output id="oRot" for="wmRot">0°</output></div><input type="range" id="wmRot" min="-45" max="45" value="0"></div>
+        </fieldset>
+
+        <fieldset class="panel">
+          <legend>Export</legend>
+          <div class="pair">
+            <label class="field"><span>Format</span>
+              <select id="fmt"><option value="png">PNG</option><option value="jpeg">JPEG</option><option value="webp">WebP</option></select>
+            </label>
+            <label class="field" id="qField"><span>Quality (%)</span><input type="number" id="quality" value="92" min="40" max="100" step="1" inputmode="numeric"></label>
+          </div>
+          <button type="button" class="btn" id="dl">Download image</button>
+          <p class="status" id="status" role="status"></p>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
