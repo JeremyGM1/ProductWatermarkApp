@@ -1,5 +1,5 @@
 import '../css/styles.css';
-import { WATERMARK_SRC, MAX_SIDE, DEFAULTS } from './config';
+import { WATERMARK_SRC, WATERMARK_LABEL, MAX_SIDE, DEFAULTS } from './config';
 import { renderImage } from './render';
 import { makeSampleProduct } from './sample';
 import type { ExportFormat, ImageItem, RenderOptions, WatermarkImage } from './types';
@@ -249,11 +249,11 @@ function download(): void {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);   // release the temporary file right away
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       say('Downloaded ' + filename + '.');
     }, 'image/' + fmt, quality);
   } catch {
-    say('The browser blocked the export. Run the app with npm run dev instead of opening the file directly.', true);
+    say('The browser blocked the export. Try another browser or save the image from the preview.', true);
   }
 }
 
@@ -282,11 +282,11 @@ async function start(): Promise<void> {
   try {
     state.wm = await loadWatermark();
     setThumb(el<HTMLCanvasElement>('thumbWm'), state.wm);
-    el('fileWm').textContent = WATERMARK_SRC + ' · ' + state.wm.w + ' × ' + state.wm.h + ' px';
+    el('fileWm').textContent = WATERMARK_LABEL + ' · ' + state.wm.w + ' × ' + state.wm.h + ' px';
     render();
   } catch {
-    el('fileWm').textContent = 'Not found: ' + WATERMARK_SRC;
-    say('The watermark file is missing. Put a transparent PNG at public/' + WATERMARK_SRC + ' and reload.', true);
+    el('fileWm').textContent = 'Not found: ' + WATERMARK_LABEL;
+    say('The watermark file is missing. Put a transparent PNG at ' + WATERMARK_LABEL + ' and rebuild.', true);
   }
 }
 

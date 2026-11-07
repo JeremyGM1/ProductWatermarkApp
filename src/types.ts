@@ -1,5 +1,7 @@
 export type Drawable = HTMLImageElement | HTMLCanvasElement;
-export type ExportFormat = "png" | "jpeg" | "webp";
+
+export type ExportFormat = 'png' | 'jpeg' | 'webp';
+
 export interface ImageItem {
   src: Drawable;
   w: number;

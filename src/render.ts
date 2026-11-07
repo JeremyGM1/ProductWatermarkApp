@@ -61,7 +61,7 @@ export function renderImage(
 
   canvas.width = plan.W;
   canvas.height = plan.H;
-  if (o.fmt === 'jpeg') {            // JPEG has no transparency
+  if (o.fmt === 'jpeg') {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, plan.W, plan.H);
   }

@@ -1,5 +1,7 @@
 import type { ExportFormat } from "./types.ts";
-export const WATERMARK_SRC = 'assets/watermark.png';
+import watermarkUrl from './assets/watermark.png';
+export const WATERMARK_SRC: string = watermarkUrl;
+export const WATERMARK_LABEL = 'src/assets/watermark.png';
 export const MAX_SIDE = 8000;
 export const DEFAULTS = {
   minOn: true,
