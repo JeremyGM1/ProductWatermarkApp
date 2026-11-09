@@ -24,8 +24,8 @@ const sample = makeSampleProduct();
 const state: AppState = {
   product: { src: sample, w: sample.width, h: sample.height, name: 'example', sample: true },
   wm: null,
-  row: 2,
-  col: 2,
+  row: 0,
+  col: 1,
   tile: false
 };
 
@@ -98,7 +98,7 @@ function setThumb(canvasEl: HTMLCanvasElement, item: WatermarkImage): void {
 function refreshProductSlot(): void {
   const p = state.product;
   setThumb(el<HTMLCanvasElement>('thumbProduct'), p);
-  el('fileProduct').textContent = (p.sample ? 'example' : p.name) + ' · ' + p.w + ' × ' + p.h + ' px';
+  el('fileProduct').textContent = (p.sample ? 'example' : p.name) + ' · ' + p.w + ' x ' + p.h + ' px';
   el('tagProduct').hidden = !p.sample;
 }
 
@@ -187,9 +187,9 @@ function render(): void {
   const marked = el<HTMLInputElement>('wmOn').checked && state.wm !== null;
   const enlarged = plan.scale > 1;
   el('stats').innerHTML =
-    '<span>Source <b>' + p.w + ' × ' + p.h + '</b></span>' +
-    '<span>Output <b>' + plan.W + ' × ' + plan.H + '</b></span>' +
-    '<span>' + (enlarged ? '<span class="up">Enlarged ×' + plan.scale.toFixed(2) + '</span>' : 'Original size kept') + '</span>' +
+    '<span>Source <b>' + p.w + ' x ' + p.h + '</b></span>' +
+    '<span>Output <b>' + plan.W + ' x ' + plan.H + '</b></span>' +
+    '<span>' + (enlarged ? '<span class="up">Enlarged x' + plan.scale.toFixed(2) + '</span>' : 'Original size kept') + '</span>' +
     '<span>' + (marked ? 'Watermark on' : 'Watermark off') + '</span>';
 }
 
@@ -282,7 +282,7 @@ async function start(): Promise<void> {
   try {
     state.wm = await loadWatermark();
     setThumb(el<HTMLCanvasElement>('thumbWm'), state.wm);
-    el('fileWm').textContent = WATERMARK_LABEL + ' · ' + state.wm.w + ' × ' + state.wm.h + ' px';
+    el('fileWm').textContent = WATERMARK_LABEL + ' · ' + state.wm.w + ' x ' + state.wm.h + ' px';
     render();
   } catch {
     el('fileWm').textContent = 'Not found: ' + WATERMARK_LABEL;

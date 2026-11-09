@@ -8,7 +8,7 @@ export const DEFAULTS = {
   minW: 800,
   minH: 800,
   wmOn: true,
-  wmSize: 30,
+  wmSize: 100,
   wmOpacity: 60,
   wmMargin: 3,
   wmRot: 0,
