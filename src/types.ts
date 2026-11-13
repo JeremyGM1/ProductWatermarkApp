@@ -7,7 +7,6 @@ export interface ImageItem {
   w: number;
   h: number;
   name: string;
-  sample: boolean;
 }
 
 export interface WatermarkImage {

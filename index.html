@@ -13,8 +13,19 @@
   <div class="wrap">
     <div class="app">
       <section class="preview" aria-label="Result">
-        <div class="stage"><canvas id="out" width="800" height="600" role="img" aria-label="Watermarked product image preview"></canvas></div>
+        <div class="stage"><canvas id="out" width="800" height="800" role="img" aria-label="Watermarked product image preview"></canvas></div>
+        <label class="empty" id="empty" for="inProduct">
+          <span class="empty-title">Choose images</span>
+          <span class="empty-hint">Click here or drop PNG, JPEG or WebP files. Until you add one, the preview shows your watermark on a blank canvas.</span>
+        </label>
         <div class="stats" id="stats" aria-live="polite"></div>
+        <div class="batch-bar" id="batchBar" hidden>
+          <div class="batch-head">
+            <span id="batchCount">0 images</span>
+            <button type="button" class="linkbtn" id="batchClear">Remove all</button>
+          </div>
+          <ul class="batch" id="batch" aria-label="Images in this batch"></ul>
+        </div>
       </section>
 
       <div class="controls">
@@ -23,10 +34,10 @@
           <label class="drop" id="dropProduct">
             <span class="thumb"><canvas id="thumbProduct" width="52" height="52"></canvas></span>
             <span class="meta">
-              <span class="label">Choose an image<span class="tag" id="tagProduct">Example</span></span>
+              <span class="label">Choose images</span>
               <span class="file" id="fileProduct"></span>
             </span>
-            <input class="sr" id="inProduct" type="file" accept="image/*">
+            <input class="sr" id="inProduct" type="file" accept="image/*" multiple>
           </label>
           <div class="fixed">
             <span class="thumb"><canvas id="thumbWm" width="52" height="52"></canvas></span>
@@ -34,7 +45,8 @@
               <span class="label">Watermark</span>
               <span class="file" id="fileWm">Loading…</span>
             </span>
-          </div>          
+          </div>
+          <p class="hint">Choose several images at once and the same settings apply to all of them. They download together as one ZIP file.</p>
         </fieldset>
 
         <fieldset class="panel">
@@ -68,7 +80,7 @@
             </label>
             <label class="field" id="qField"><span>Quality (%)</span><input type="number" id="quality" value="92" min="40" max="100" step="1" inputmode="numeric"></label>
           </div>
-          <button type="button" class="btn" id="dl">Download image</button>
+          <button type="button" class="btn" id="dl" disabled>Download image</button>
           <p class="status" id="status" role="status"></p>
         </fieldset>
       </div>

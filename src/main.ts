@@ -1,7 +1,9 @@
 import '../css/styles.css';
+import '../css/batch.css';
 import { WATERMARK_SRC, WATERMARK_LABEL, MAX_SIDE, DEFAULTS } from './config';
-import { renderImage } from './render';
-import { makeSampleProduct } from './sample';
+import { planOutput, renderImage } from './render';
+import { buildZip, canvasToBlob, fileBaseName, saveBlob, uniqueName } from './export';
+import type { NamedBlob } from './export';
 import type { ExportFormat, ImageItem, RenderOptions, WatermarkImage } from './types';
 
 function el<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -13,21 +15,38 @@ function el<T extends HTMLElement = HTMLElement>(id: string): T {
 const out = el<HTMLCanvasElement>('out');
 
 interface AppState {
-  product: ImageItem;
+  items: ImageItem[];
+  selected: number;
   wm: WatermarkImage | null;
   row: number;
   col: number;
   tile: boolean;
+  busy: boolean;
 }
 
-const sample = makeSampleProduct();
+const blank = document.createElement('canvas');
+blank.width = 800;
+blank.height = 800;
+const blankContext = blank.getContext('2d');
+if (blankContext) {
+  blankContext.fillStyle = '#C9D1DA';
+  blankContext.fillRect(0, 0, 800, 800);
+}
+const blankItem: ImageItem = { src: blank, w: 800, h: 800, name: 'blank' };
+
 const state: AppState = {
-  product: { src: sample, w: sample.width, h: sample.height, name: 'example', sample: true },
+  items: [],
+  selected: 0,
   wm: null,
   row: 0,
   col: 1,
-  tile: false
+  tile: false,
+  busy: false
 };
+
+function current(): ImageItem | null {
+  return state.items[state.selected] ?? null;
+}
 
 function say(msg: string, isErr = false): void {
   const s = el('status');
@@ -66,7 +85,7 @@ function loadFile(file: File): Promise<ImageItem> {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () =>
-      resolve({ src: img, w: img.naturalWidth, h: img.naturalHeight, name: file.name, sample: false });
+      resolve({ src: img, w: img.naturalWidth, h: img.naturalHeight, name: file.name });
     img.onerror = () => {
       URL.revokeObjectURL(url);
       reject(new Error('unreadable'));
@@ -96,40 +115,145 @@ function setThumb(canvasEl: HTMLCanvasElement, item: WatermarkImage): void {
 }
 
 function refreshProductSlot(): void {
-  const p = state.product;
-  setThumb(el<HTMLCanvasElement>('thumbProduct'), p);
-  el('fileProduct').textContent = (p.sample ? 'example' : p.name) + ' · ' + p.w + ' x ' + p.h + ' px';
-  el('tagProduct').hidden = !p.sample;
-}
-
-function acceptProduct(file: File | undefined): void {
-  if (!file) return;
-  if (!file.type.startsWith('image/')) {
-    say('That file is not an image. Choose a PNG, JPEG or WebP file.', true);
+  const p = current();
+  const thumb = el<HTMLCanvasElement>('thumbProduct');
+  if (!p) {
+    thumb.getContext('2d')?.clearRect(0, 0, thumb.width, thumb.height);
+    el('fileProduct').textContent = 'No image chosen yet';
     return;
   }
-  loadFile(file)
-    .then((img) => {
-      state.product = img;
-      say('');
-      refreshProductSlot();
-      schedule();
-    })
-    .catch(() => say('That image could not be read. Try saving it as PNG or JPEG first.', true));
+  setThumb(thumb, p);
+  el('fileProduct').textContent = p.name + ' · ' + p.w + ' x ' + p.h + ' px';
+}
+
+const batchItems: HTMLButtonElement[] = [];
+
+function markSelected(): void {
+  batchItems.forEach((b, i) => b.setAttribute('aria-pressed', String(i === state.selected)));
+}
+
+function updateDownloadButton(): void {
+  const n = state.items.length;
+  const button = el<HTMLButtonElement>('dl');
+  button.textContent = n > 1 ? 'Download ' + n + ' images (.zip)' : 'Download image';
+  button.disabled = state.busy || n === 0;
+}
+
+function select(i: number): void {
+  state.selected = i;
+  markSelected();
+  refreshProductSlot();
+  schedule();
+}
+
+function removeItem(i: number): void {
+  state.items.splice(i, 1);
+  if (i < state.selected) state.selected--;
+  if (state.selected >= state.items.length) state.selected = Math.max(0, state.items.length - 1);
+  renderBatch();
+  refreshProductSlot();
+  schedule();
+}
+
+function renderBatch(): void {
+  const list = el('batch');
+  list.replaceChildren();
+  batchItems.length = 0;
+  el('batchBar').hidden = state.items.length === 0;
+  el('batchCount').textContent = state.items.length + (state.items.length === 1 ? ' image' : ' images');
+
+  state.items.forEach((item, i) => {
+    const li = document.createElement('li');
+    li.className = 'batch-item';
+
+    const pick = document.createElement('button');
+    pick.type = 'button';
+    pick.className = 'batch-pick';
+    pick.setAttribute('aria-label', 'Preview ' + item.name);
+    const thumb = document.createElement('canvas');
+    thumb.width = 56;
+    thumb.height = 56;
+    setThumb(thumb, item);
+    const name = document.createElement('span');
+    name.className = 'batch-name';
+    name.textContent = item.name;
+    name.title = item.name;
+    pick.append(thumb, name);
+    pick.addEventListener('click', () => select(i));
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'batch-remove';
+    remove.setAttribute('aria-label', 'Remove ' + item.name);
+    remove.textContent = '×';
+    remove.addEventListener('click', () => removeItem(i));
+
+    li.append(pick, remove);
+    list.appendChild(li);
+    batchItems.push(pick);
+  });
+  markSelected();
+  updateDownloadButton();
+}
+
+async function acceptFiles(files: File[]): Promise<void> {
+  if (files.length === 0) return;
+  const images = files.filter((f) => f.type.startsWith('image/'));
+  const notImages = files.length - images.length;
+  if (images.length === 0) {
+    say('Those files are not images. Choose PNG, JPEG or WebP files.', true);
+    return;
+  }
+
+  const results = await Promise.allSettled(images.map(loadFile));
+  const loaded: ImageItem[] = [];
+  results.forEach((r) => { if (r.status === 'fulfilled') loaded.push(r.value); });
+  const unreadable = images.length - loaded.length;
+
+  if (loaded.length > 0) {
+    const wasEmpty = state.items.length === 0;
+    state.items.push(...loaded);
+    if (wasEmpty) state.selected = 0;
+    renderBatch();
+    refreshProductSlot();
+    schedule();
+  }
+
+  const skipped = notImages + unreadable;
+  if (skipped > 0 && loaded.length > 0) {
+    say(skipped + (skipped === 1 ? ' file was' : ' files were') + ' skipped because ' + (skipped === 1 ? 'it' : 'they') + ' could not be read as images.', true);
+  } else if (loaded.length === 0) {
+    say('Those images could not be read. Try saving them as PNG or JPEG first.', true);
+  } else {
+    say('');
+  }
 }
 
 function wireProductDrop(): void {
-  const zone = el('dropProduct');
   const input = el<HTMLInputElement>('inProduct');
   input.addEventListener('change', () => {
-    acceptProduct(input.files?.[0]);
+    void acceptFiles(Array.from(input.files ?? []));
     input.value = '';
   });
-  (['dragenter', 'dragover'] as const).forEach((ev) =>
-    zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('over'); }));
-  (['dragleave', 'drop'] as const).forEach((ev) =>
-    zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove('over'); }));
-  zone.addEventListener('drop', (e) => acceptProduct((e as DragEvent).dataTransfer?.files[0]));
+
+  [el('dropProduct'), el('empty')].forEach((zone) => {
+    (['dragenter', 'dragover'] as const).forEach((ev) =>
+      zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('over'); }));
+    (['dragleave', 'drop'] as const).forEach((ev) =>
+      zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove('over'); }));
+    zone.addEventListener('drop', (e) => void acceptFiles(Array.from((e as DragEvent).dataTransfer?.files ?? [])));
+  });
+
+  (['dragover', 'drop'] as const).forEach((ev) => window.addEventListener(ev, (e) => e.preventDefault()));
+
+  el('batchClear').addEventListener('click', () => {
+    state.items = [];
+    state.selected = 0;
+    renderBatch();
+    refreshProductSlot();
+    say('');
+    schedule();
+  });
 }
 
 interface Cell {
@@ -182,15 +306,29 @@ function buildPositionGrid(): void {
 }
 
 function render(): void {
-  const p = state.product;
-  const plan = renderImage(out, p, state.wm, options());
-  const marked = el<HTMLInputElement>('wmOn').checked && state.wm !== null;
+  const chosen = current();
+  const o = options();
+  el('empty').hidden = chosen !== null;
+  if (!chosen) {
+    renderImage(out, blankItem, state.wm, { ...o, minOn: false });
+    const on = o.wmOn && state.wm !== null;
+    el('stats').innerHTML = '<span>Preview on a blank canvas</span><span>' + (on ? 'Watermark on' : 'Watermark off') + '</span>';
+    return;
+  }
+  const p = chosen;
+  const plan = renderImage(out, p, state.wm, o);
+  const marked = o.wmOn && state.wm !== null;
   const enlarged = plan.scale > 1;
-  el('stats').innerHTML =
+  let html =
     '<span>Source <b>' + p.w + ' x ' + p.h + '</b></span>' +
     '<span>Output <b>' + plan.W + ' x ' + plan.H + '</b></span>' +
     '<span>' + (enlarged ? '<span class="up">Enlarged x' + plan.scale.toFixed(2) + '</span>' : 'Original size kept') + '</span>' +
     '<span>' + (marked ? 'Watermark on' : 'Watermark off') + '</span>';
+  if (state.items.length > 1) {
+    const up = state.items.filter((it) => planOutput(it, o).scale > 1).length;
+    html += '<span>Batch <b>' + state.items.length + ' images</b>, ' + up + ' enlarged</span>';
+  }
+  el('stats').innerHTML = html;
 }
 
 let pending = false;
@@ -224,36 +362,56 @@ function wireControls(): void {
   el('qField').hidden = format() === 'png';
 }
 
-function baseName(): string {
-  const n = state.product.sample ? 'product' : state.product.name;
-  return n.replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'product';
+function baseName(item: ImageItem): string {
+  return fileBaseName(item.name);
 }
 
-function download(): void {
-  const fmt = format();
-  const ext = { png: 'png', jpeg: 'jpg', webp: 'webp' }[fmt];
-  const quality = num('quality', 40, 100, DEFAULTS.quality) / 100;
-  const filename = baseName() + '-watermarked.' + ext;
+const pause = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
-  render();
+async function exportOne(item: ImageItem, o: RenderOptions, quality: number): Promise<Blob> {
+  const canvas = document.createElement('canvas');
   try {
-    out.toBlob((blob) => {
-      if (!blob) {
-        say('The image could not be exported. Try a smaller minimum size.', true);
-        return;
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      say('Downloaded ' + filename + '.');
-    }, 'image/' + fmt, quality);
+    renderImage(canvas, item, state.wm, o);
+    return await canvasToBlob(canvas, 'image/' + o.fmt, quality);
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+}
+
+async function download(): Promise<void> {
+  if (state.busy || state.items.length === 0) return;
+  const o = options();
+  const ext = { png: 'png', jpeg: 'jpg', webp: 'webp' }[o.fmt];
+  const quality = num('quality', 40, 100, DEFAULTS.quality) / 100;
+  const items = state.items;
+
+  state.busy = true;
+  updateDownloadButton();
+  try {
+    const used = new Set<string>();
+    const files: NamedBlob[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items.length > 1) say('Processing image ' + (i + 1) + ' of ' + items.length + '…');
+      await pause();
+      const blob = await exportOne(items[i], o, quality);
+      files.push({ name: uniqueName(baseName(items[i]) + '-watermarked.' + ext, used), blob });
+    }
+
+    if (files.length === 1) {
+      saveBlob(files[0].blob, files[0].name);
+      say('Downloaded ' + files[0].name + '.');
+    } else {
+      say('Packing ' + files.length + ' images into a ZIP…');
+      await pause();
+      saveBlob(await buildZip(files), 'watermarked-images.zip');
+      say('Downloaded ' + files.length + ' images in watermarked-images.zip.');
+    }
   } catch {
-    say('The browser blocked the export. Try another browser or save the image from the preview.', true);
+    say('The export failed. Try fewer images at once or a smaller minimum size.', true);
+  } finally {
+    state.busy = false;
+    updateDownloadButton();
   }
 }
 
@@ -275,9 +433,10 @@ async function start(): Promise<void> {
   wireProductDrop();
   buildPositionGrid();
   wireControls();
+  renderBatch();
   refreshProductSlot();
   render();
-  el('dl').addEventListener('click', download);
+  el('dl').addEventListener('click', () => void download());
 
   try {
     state.wm = await loadWatermark();

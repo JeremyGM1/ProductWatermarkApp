@@ -14,23 +14,19 @@
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   color-scheme: light;
 }
-
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-  --bg: #E9EDF1;
-  --panel: #F6F8FA;
-  --ink: #141A22;
-  --muted: #566170;
-  --line: #CAD1D9;
-  --accent: #2B44C8;
-  --accent-ink: #FFFFFF;
-  --stage: #DAE0E6;
-  --good: #1F7A4D;
-  --error: #C0392B;
-  --font-display: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  color-scheme: light;
+    --bg: #0F141A;
+    --panel: #171E26;
+    --ink: #E7ECF1;
+    --muted: #98A4B2;
+    --line: #2A3440;
+    --accent: #8497FF;
+    --accent-ink: #0B1020;
+    --stage: #0A0E13;
+    --good: #5CC795;
+    --error: #FF8A7A;
+    color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
@@ -122,7 +118,6 @@ header p { margin: 0; color: var(--muted); max-width: 62ch; }
 }
 .panel > legend + * { clear: both; }
 
-/* Product picker and the fixed watermark row share the thumbnail style. */
 .drop, .fixed {
   display: flex; align-items: center; gap: 12px;
   border-radius: 6px;
